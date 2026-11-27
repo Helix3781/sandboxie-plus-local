@@ -1,5 +1,9 @@
 #include "stdafx.h"
 #include "SbieView.h"
+#include <QFileDialog>
+#include <QInputDialog>
+#include <QDir>
+#include <QFileInfo>
 #include "..\SandMan.h"
 #include "../QSbieAPI/SbieAPI.h"
 #include "../QSbieAPI/SbieUtils.h"
@@ -177,6 +181,7 @@ void CSbieView::CreateMenu()
 	m_pAddGroupe = m_pMenu->addAction(CSandMan::GetIcon("Group"), tr("Create Box Group"), this, SLOT(OnGroupAction()));
 	m_pImportBox = m_pMenu->addAction(CSandMan::GetIcon("UnPackBox"), tr("Import Boxes"), this, SLOT(OnGroupAction()));
 	m_pImportBox->setEnabled(CArchive::IsInit());
+	m_pImportProgram = m_pMenu->addAction(CSandMan::GetIcon("UnPackBox"), tr("Import Program"), this, SLOT(OnSandBoxAction()));
 
 
 	m_pMenuBox = new QMenu();
@@ -228,6 +233,7 @@ void CSbieView::CreateMenu()
 		m_pMenuContent->addSeparator();
 		m_pMenuRefresh = m_pMenuContent->addAction(CSandMan::GetIcon("Refresh"), tr("Refresh Info"), this, SLOT(OnSandBoxAction()));
 		m_pMenuMkLink = m_pMenuContent->addAction(CSandMan::GetIcon("MkLink"), tr("Create Shortcut"), this, SLOT(OnSandBoxAction()));
+		m_pMenuImportProgram = m_pMenuContent->addAction(CSandMan::GetIcon("UnPackBox"), tr("Import Program..."), this, SLOT(OnSandBoxAction()));
 		m_pMenuContent->addSeparator();
 		m_pMenuExplore = m_pMenuContent->addAction(CSandMan::GetIcon("Explore"), tr("Explore Content"), this, SLOT(OnSandBoxAction()));
 		m_pMenuRegEdit = m_pMenuContent->addAction(CSandMan::GetIcon("RegEdit"), tr("Open Registry"), this, SLOT(OnSandBoxAction()));
@@ -348,6 +354,7 @@ void CSbieView::CreateOldMenu()
 	m_pAddGroupe = m_pMenu->addAction(CSandMan::GetIcon("Group"), tr("Create Box Group"), this, SLOT(OnGroupAction()));
 	m_pImportBox = m_pMenu->addAction(CSandMan::GetIcon("UnPackBox"), tr("Import Boxes"), this, SLOT(OnGroupAction()));
 	m_pImportBox->setEnabled(CArchive::IsInit());
+	m_pImportProgram = m_pMenu->addAction(CSandMan::GetIcon("UnPackBox"), tr("Import Program"), this, SLOT(OnSandBoxAction()));
 	
 
 	m_pMenuBox = new QMenu();
@@ -431,6 +438,8 @@ void CSbieView::CreateOldMenu()
 
 	
 	m_pMenuContent = NULL;
+	m_pMenuImportProgram = NULL;
+	m_pImportProgram = NULL;
 		m_pMenuRegEdit = NULL;
 	
 	m_pMenuPresets = NULL;
@@ -703,6 +712,8 @@ bool CSbieView::UpdateMenu(bool bAdvanced, const CSandBoxPtr &pBox, int iSandBox
 	m_pMenuRename->setEnabled(iSandBoxeCount > 1 || (iSandBoxeCount == 1 && pBoxEx->GetMountRoot().isEmpty()));
 
 	m_pMenuOptions->setEnabled(iSandBoxeCount == 1);
+	if (m_pMenuImportProgram)
+		m_pMenuImportProgram->setEnabled(iSandBoxeCount == 1);
 
 	if (m_pMenuPresets) {
 		m_pMenuPresets->setEnabled(iSandBoxeCount == 1);
@@ -1439,6 +1450,99 @@ bool CSbieView::TestNameAndWarn(const QString& Name)
 	return true;
 }
 
+static bool SbieView__CopyFolder(const QString& Source, const QString& Target, int& Files, QString& Failed)
+{
+	QDir SourceDir(Source);
+	if (!SourceDir.exists()) { Failed = Source; return false; }
+	if (!QDir().mkpath(Target)) { Failed = Target; return false; }
+
+	foreach(const QFileInfo& Info, SourceDir.entryInfoList(QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot))
+	{
+		if (Info.isSymLink())
+			continue;
+		const QString SourcePath = Info.absoluteFilePath();
+		const QString TargetPath = Target + "\\" + Info.fileName();
+		if (Info.isDir()) {
+			if (!SbieView__CopyFolder(SourcePath, TargetPath, Files, Failed))
+				return false;
+		} else {
+			if (QFile::exists(TargetPath) && !QFile::remove(TargetPath)) { Failed = TargetPath; return false; }
+			if (!QFile::copy(SourcePath, TargetPath)) { Failed = SourcePath; return false; }
+			Files++;
+		}
+	}
+	return true;
+}
+
+void CSbieView::ImportProgram(const CSandBoxPtr& Box)
+{
+	CSandBoxPlus* pBox = Box.objectCast<CSandBoxPlus>().data();
+	if (!pBox)
+		return;
+
+	// Local-only build: bring a portable program physically into the box and add a Run Menu entry.
+	QString Source = QFileDialog::getExistingDirectory(this, tr("Select the folder of the portable program to import"));
+	if (Source.isEmpty())
+		return;
+	Source = QDir::toNativeSeparators(Source);
+	while (Source.endsWith("\\"))
+		Source.chop(1);
+
+	QString Root = QDir::toNativeSeparators(pBox->GetFileRoot());
+	while (Root.endsWith("\\"))
+		Root.chop(1);
+	if (Root.isEmpty()) {
+		QMessageBox::critical(this, tr("Import Program"), tr("The sandbox has no file root."));
+		return;
+	}
+
+	if (Source.compare(Root, Qt::CaseInsensitive) == 0 || Source.startsWith(Root + "\\", Qt::CaseInsensitive)) {
+		QMessageBox::warning(this, tr("Import Program"), tr("This folder is already part of the sandbox:\n%1").arg(Source));
+		return;
+	}
+	if (Source.length() < 4 || Source.at(1) != ':') {
+		QMessageBox::warning(this, tr("Import Program"), tr("Only folders on a local drive (for example D:\\Apps\\Foo) can be imported."));
+		return;
+	}
+
+	const QString Drive = Source.left(1).toUpper();
+	const QString Relative = Source.mid(3);
+	const QString Target = Root + "\\drive\\" + Drive + (Relative.isEmpty() ? QString() : "\\" + Relative);
+
+	int Files = 0;
+	QString Failed;
+	if (!SbieView__CopyFolder(Source, Target, Files, Failed)) {
+		QMessageBox::critical(this, tr("Import Program"), tr("Failed to copy:\n%1").arg(Failed));
+		return;
+	}
+
+	QStringList Exes = QDir(Source).entryList(QStringList() << "*.exe", QDir::Files, QDir::Name);
+	QString ExeName;
+	if (Exes.count() == 1) {
+		ExeName = Exes.first();
+	} else if (Exes.isEmpty()) {
+		QMessageBox::information(this, tr("Import Program"),
+			tr("%1 file(s) were copied into the sandbox, but the top folder has no .exe, so nothing was added to the Run Menu.").arg(Files));
+		return;
+	} else {
+		bool Ok = false;
+		ExeName = QInputDialog::getItem(this, tr("Import Program"),
+			tr("%1 file(s) were copied. Which program should be added to the Run Menu?").arg(Files), Exes, 0, false, &Ok);
+		if (!Ok || ExeName.isEmpty())
+			return;
+	}
+
+	// The boxed process still sees the original path, so the command stays the host path.
+	const QString ExePath = Source + "\\" + ExeName;
+	const QString MenuName = QFileInfo(ExeName).completeBaseName();
+	const QString Command = pBox->MakeBoxCommand(ExePath);
+	pBox->AppendText("RunCommand", MenuName + "|" + Command);
+
+	QMessageBox::information(this, tr("Import Program"),
+		tr("%1 file(s) were imported into the sandbox.\n\nRun Menu entry: %2\nCommand: %3\n\nStart it from the box's Run menu.")
+		.arg(Files).arg(MenuName).arg(Command));
+}
+
 void CSbieView::OnSandBoxAction()
 {
 	OnSandBoxAction(qobject_cast<QAction*>(sender()), m_CurSandBoxes);
@@ -2046,6 +2150,10 @@ void CSbieView::OnSandBoxAction(QAction* Action, const QList<CSandBoxPtr>& SandB
 
 		foreach(const CSandBoxPtr& pBox, SandBoxes)
 			Results.append(pBox->TerminateAll());
+	}
+	else if (Action == m_pMenuImportProgram || Action == m_pImportProgram)
+	{
+		ImportProgram(SandBoxes.first());
 	}
 	else if (Action == m_pMenuMkLink)
 	{

@@ -43,6 +43,7 @@ git diff --no-index --stat upstream local
 | 5 | 箱类型收敛为两种 | `SandboxiePlus/SandMan/Wizards/NewBoxWizard.cpp` | 建箱向导只保留「标准沙盒」与「应用程序隔离箱」（不带数据保护） |
 | 6 | 移除证书/评估证书引导 | `SandboxiePlus/SandMan/Wizards/SetupWizard.cpp` | 注释掉 `Page_Certificate` 注册，向导不再进入证书页 |
 | 7 | MCP / AI 页面本地化 | `SandboxiePlus/SandMan/Mcp/McpClientSetup.cpp`<br>`SandboxiePlus/SandMan/Mcp/McpConnectDialog.cpp`<br>`SandboxiePlus/SandMan/Windows/SettingsWindow.cpp`<br>`SandboxiePlus/SandMan/Forms/SettingsWindow.ui` | 服务器名改 `sandboxie-local`，优先指向同目录 `sbie-mcp.exe`；第三方客户端条目换成「本地 JSON 配置」与「sbie-box 命令行」两条；AI 页小标题修正并追加 CLI 说明 |
+| 8 | 内置「导入程序」 | `SandboxiePlus/SandMan/Views/SbieView.cpp`<br>`SandboxiePlus/SandMan/Views/SbieView.h` | 箱右键 → **Box Content → Import Program...**，主菜单 **Sandbox → Import Program**：把绿色程序整个文件夹拷进箱内 `drive\<盘>\<原路径>` 并在运行菜单里加一条入口（路径含空格时用引号写入，不需要 8.3 短名）。 |
 | 8 | 适配无 ATL / Qt6 的构建环境 | `SandboxiePlus/SandMan/Helpers/WinHelper.cpp`<br>`SandboxiePlus/SandMan/Helpers/AtlShim.h`（新增）<br>`SandboxiePlus/SandMan/Views/FileView.cpp`<br>`SandboxiePlus/SandMan/SandMan.qc.pro` | 自带最小 `CComPtr`/`CComHeapPtr` 垫片替代 `atlbase.h`；`QImage::fromHICON` 自实现；去掉 `QT += winextras` |
 
 ### 列级说明（为什么要动驱动）
