@@ -4,6 +4,10 @@
 #include <QInputDialog>
 #include <QDir>
 #include <QFileInfo>
+
+// Local-only build: these menu labels are hard-coded Chinese, written as UTF-8 byte
+// escapes so this source file stays pure ASCII (no /utf-8 switch needed).
+static inline QString SbieView__L(const char* Utf8) { return QString::fromUtf8(Utf8); }
 #include "..\SandMan.h"
 #include "../QSbieAPI/SbieAPI.h"
 #include "../QSbieAPI/SbieUtils.h"
@@ -181,7 +185,8 @@ void CSbieView::CreateMenu()
 	m_pAddGroupe = m_pMenu->addAction(CSandMan::GetIcon("Group"), tr("Create Box Group"), this, SLOT(OnGroupAction()));
 	m_pImportBox = m_pMenu->addAction(CSandMan::GetIcon("UnPackBox"), tr("Import Boxes"), this, SLOT(OnGroupAction()));
 	m_pImportBox->setEnabled(CArchive::IsInit());
-	m_pImportProgram = m_pMenu->addAction(CSandMan::GetIcon("UnPackBox"), tr("Import Program"), this, SLOT(OnSandBoxAction()));
+	m_pImportFolder = m_pMenu->addAction(CSandMan::GetIcon("UnPackBox"), SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9"), this, SLOT(OnSandBoxAction()));
+	m_pImportProgram = m_pMenu->addAction(CSandMan::GetIcon("UnPackBox"), SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe7\xa8\x8b\xe5\xba\x8f"), this, SLOT(OnSandBoxAction()));
 
 
 	m_pMenuBox = new QMenu();
@@ -233,7 +238,8 @@ void CSbieView::CreateMenu()
 		m_pMenuContent->addSeparator();
 		m_pMenuRefresh = m_pMenuContent->addAction(CSandMan::GetIcon("Refresh"), tr("Refresh Info"), this, SLOT(OnSandBoxAction()));
 		m_pMenuMkLink = m_pMenuContent->addAction(CSandMan::GetIcon("MkLink"), tr("Create Shortcut"), this, SLOT(OnSandBoxAction()));
-		m_pMenuImportProgram = m_pMenuContent->addAction(CSandMan::GetIcon("UnPackBox"), tr("Import Program..."), this, SLOT(OnSandBoxAction()));
+		m_pMenuImportFolder = m_pMenuContent->addAction(CSandMan::GetIcon("UnPackBox"), SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9\x2e\x2e\x2e"), this, SLOT(OnSandBoxAction()));
+		m_pMenuImportProgram = m_pMenuContent->addAction(CSandMan::GetIcon("UnPackBox"), SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe7\xa8\x8b\xe5\xba\x8f\x2e\x2e\x2e"), this, SLOT(OnSandBoxAction()));
 		m_pMenuContent->addSeparator();
 		m_pMenuExplore = m_pMenuContent->addAction(CSandMan::GetIcon("Explore"), tr("Explore Content"), this, SLOT(OnSandBoxAction()));
 		m_pMenuRegEdit = m_pMenuContent->addAction(CSandMan::GetIcon("RegEdit"), tr("Open Registry"), this, SLOT(OnSandBoxAction()));
@@ -354,7 +360,8 @@ void CSbieView::CreateOldMenu()
 	m_pAddGroupe = m_pMenu->addAction(CSandMan::GetIcon("Group"), tr("Create Box Group"), this, SLOT(OnGroupAction()));
 	m_pImportBox = m_pMenu->addAction(CSandMan::GetIcon("UnPackBox"), tr("Import Boxes"), this, SLOT(OnGroupAction()));
 	m_pImportBox->setEnabled(CArchive::IsInit());
-	m_pImportProgram = m_pMenu->addAction(CSandMan::GetIcon("UnPackBox"), tr("Import Program"), this, SLOT(OnSandBoxAction()));
+	m_pImportFolder = m_pMenu->addAction(CSandMan::GetIcon("UnPackBox"), SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9"), this, SLOT(OnSandBoxAction()));
+	m_pImportProgram = m_pMenu->addAction(CSandMan::GetIcon("UnPackBox"), SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe7\xa8\x8b\xe5\xba\x8f"), this, SLOT(OnSandBoxAction()));
 	
 
 	m_pMenuBox = new QMenu();
@@ -438,7 +445,9 @@ void CSbieView::CreateOldMenu()
 
 	
 	m_pMenuContent = NULL;
+	m_pMenuImportFolder = NULL;
 	m_pMenuImportProgram = NULL;
+	m_pImportFolder = NULL;
 	m_pImportProgram = NULL;
 		m_pMenuRegEdit = NULL;
 	
@@ -712,6 +721,8 @@ bool CSbieView::UpdateMenu(bool bAdvanced, const CSandBoxPtr &pBox, int iSandBox
 	m_pMenuRename->setEnabled(iSandBoxeCount > 1 || (iSandBoxeCount == 1 && pBoxEx->GetMountRoot().isEmpty()));
 
 	m_pMenuOptions->setEnabled(iSandBoxeCount == 1);
+	if (m_pMenuImportFolder)
+		m_pMenuImportFolder->setEnabled(iSandBoxeCount == 1);
 	if (m_pMenuImportProgram)
 		m_pMenuImportProgram->setEnabled(iSandBoxeCount == 1);
 
@@ -1474,14 +1485,13 @@ static bool SbieView__CopyFolder(const QString& Source, const QString& Target, i
 	return true;
 }
 
-void CSbieView::ImportProgram(const CSandBoxPtr& Box)
+void CSbieView::ImportFolder(const CSandBoxPtr& Box)
 {
 	CSandBoxPlus* pBox = Box.objectCast<CSandBoxPlus>().data();
 	if (!pBox)
 		return;
 
-	// Local-only build: bring a portable program physically into the box and add a Run Menu entry.
-	QString Source = QFileDialog::getExistingDirectory(this, tr("Select the folder of the portable program to import"));
+	QString Source = QFileDialog::getExistingDirectory(this, SbieView__L("\xe9\x80\x89\xe6\x8b\xa9\xe8\xa6\x81\xe5\xaf\xbc\xe5\x85\xa5\xe7\x9a\x84\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9"));
 	if (Source.isEmpty())
 		return;
 	Source = QDir::toNativeSeparators(Source);
@@ -1492,16 +1502,16 @@ void CSbieView::ImportProgram(const CSandBoxPtr& Box)
 	while (Root.endsWith("\\"))
 		Root.chop(1);
 	if (Root.isEmpty()) {
-		QMessageBox::critical(this, tr("Import Program"), tr("The sandbox has no file root."));
+		QMessageBox::critical(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9"), SbieView__L("\xe6\xb2\x99\xe7\x9b\x92\xe6\xb2\xa1\xe6\x9c\x89\xe6\x96\x87\xe4\xbb\xb6\xe6\xa0\xb9\xe7\x9b\xae\xe5\xbd\x95\xe3\x80\x82"));
 		return;
 	}
 
 	if (Source.compare(Root, Qt::CaseInsensitive) == 0 || Source.startsWith(Root + "\\", Qt::CaseInsensitive)) {
-		QMessageBox::warning(this, tr("Import Program"), tr("This folder is already part of the sandbox:\n%1").arg(Source));
+		QMessageBox::warning(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9"), SbieView__L("\xe8\xbf\x99\xe4\xb8\xaa\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9\xe5\xb7\xb2\xe7\xbb\x8f\xe5\x9c\xa8\xe6\xb2\x99\xe7\x9b\x92\xe9\x87\x8c\xe4\xba\x86\xef\xbc\x9a\x0a\x25\x31").arg(Source));
 		return;
 	}
 	if (Source.length() < 4 || Source.at(1) != ':') {
-		QMessageBox::warning(this, tr("Import Program"), tr("Only folders on a local drive (for example D:\\Apps\\Foo) can be imported."));
+		QMessageBox::warning(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9"), SbieView__L("\xe5\x8f\xaa\xe8\x83\xbd\xe5\xaf\xbc\xe5\x85\xa5\xe6\x9c\xac\xe5\x9c\xb0\xe7\xa3\x81\xe7\x9b\x98\xe4\xb8\x8a\xe7\x9a\x84\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9\xef\xbc\x88\xe4\xbe\x8b\xe5\xa6\x82\x20\x44\x3a\x5c\x41\x70\x70\x73\x5c\x46\x6f\x6f\xef\xbc\x89\xe3\x80\x82"));
 		return;
 	}
 
@@ -1512,7 +1522,7 @@ void CSbieView::ImportProgram(const CSandBoxPtr& Box)
 	int Files = 0;
 	QString Failed;
 	if (!SbieView__CopyFolder(Source, Target, Files, Failed)) {
-		QMessageBox::critical(this, tr("Import Program"), tr("Failed to copy:\n%1").arg(Failed));
+		QMessageBox::critical(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9"), SbieView__L("\xe5\xa4\x8d\xe5\x88\xb6\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x9a\x0a\x25\x31").arg(Failed));
 		return;
 	}
 
@@ -1521,13 +1531,11 @@ void CSbieView::ImportProgram(const CSandBoxPtr& Box)
 	if (Exes.count() == 1) {
 		ExeName = Exes.first();
 	} else if (Exes.isEmpty()) {
-		QMessageBox::information(this, tr("Import Program"),
-			tr("%1 file(s) were copied into the sandbox, but the top folder has no .exe, so nothing was added to the Run Menu.").arg(Files));
+		QMessageBox::information(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9"), SbieView__L("\xe5\xb7\xb2\xe5\xa4\x8d\xe5\x88\xb6\x20\x25\x31\x20\xe4\xb8\xaa\xe6\x96\x87\xe4\xbb\xb6\xef\xbc\x8c\xe4\xbd\x86\xe9\xa1\xb6\xe5\xb1\x82\xe7\x9b\xae\xe5\xbd\x95\xe9\x87\x8c\xe6\xb2\xa1\xe6\x9c\x89\x20\x2e\x65\x78\x65\xef\xbc\x8c\xe6\x89\x80\xe4\xbb\xa5\xe6\xb2\xa1\xe6\x9c\x89\xe5\x8a\xa0\xe5\x88\xb0\xe8\xbf\x90\xe8\xa1\x8c\xe8\x8f\x9c\xe5\x8d\x95\xe3\x80\x82").arg(Files));
 		return;
 	} else {
 		bool Ok = false;
-		ExeName = QInputDialog::getItem(this, tr("Import Program"),
-			tr("%1 file(s) were copied. Which program should be added to the Run Menu?").arg(Files), Exes, 0, false, &Ok);
+		ExeName = QInputDialog::getItem(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9"), SbieView__L("\xe5\xb7\xb2\xe5\xa4\x8d\xe5\x88\xb6\x20\x25\x31\x20\xe4\xb8\xaa\xe6\x96\x87\xe4\xbb\xb6\xe3\x80\x82\xe8\xa6\x81\xe6\x8a\x8a\xe5\x93\xaa\xe4\xb8\xaa\xe7\xa8\x8b\xe5\xba\x8f\xe5\x8a\xa0\xe5\x88\xb0\xe8\xbf\x90\xe8\xa1\x8c\xe8\x8f\x9c\xe5\x8d\x95\xef\xbc\x9f").arg(Files), Exes, 0, false, &Ok);
 		if (!Ok || ExeName.isEmpty())
 			return;
 	}
@@ -1538,9 +1546,63 @@ void CSbieView::ImportProgram(const CSandBoxPtr& Box)
 	const QString Command = pBox->MakeBoxCommand(ExePath);
 	pBox->AppendText("RunCommand", MenuName + "|" + Command);
 
-	QMessageBox::information(this, tr("Import Program"),
-		tr("%1 file(s) were imported into the sandbox.\n\nRun Menu entry: %2\nCommand: %3\n\nStart it from the box's Run menu.")
-		.arg(Files).arg(MenuName).arg(Command));
+	QMessageBox::information(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9"), SbieView__L("\xe5\xb7\xb2\xe5\xaf\xbc\xe5\x85\xa5\x20\x25\x31\x20\xe4\xb8\xaa\xe6\x96\x87\xe4\xbb\xb6\xe5\x88\xb0\xe6\xb2\x99\xe7\x9b\x92\xe3\x80\x82\x0a\x0a\xe8\xbf\x90\xe8\xa1\x8c\xe8\x8f\x9c\xe5\x8d\x95\xe9\xa1\xb9\xef\xbc\x9a\x25\x32\x0a\xe5\x91\xbd\xe4\xbb\xa4\xef\xbc\x9a\x25\x33\x0a\x0a\xe4\xbb\x8e\xe6\xb2\x99\xe7\x9b\x92\xe7\x9a\x84\xe8\xbf\x90\xe8\xa1\x8c\xe8\x8f\x9c\xe5\x8d\x95\xe5\x90\xaf\xe5\x8a\xa8\xe5\xae\x83\xe3\x80\x82").arg(Files).arg(MenuName).arg(Command));
+}
+
+void CSbieView::ImportProgram(const CSandBoxPtr& Box)
+{
+	CSandBoxPlus* pBox = Box.objectCast<CSandBoxPlus>().data();
+	if (!pBox)
+		return;
+
+	QString Source = QFileDialog::getOpenFileName(this, SbieView__L("\xe9\x80\x89\xe6\x8b\xa9\xe8\xa6\x81\xe5\xaf\xbc\xe5\x85\xa5\xe7\x9a\x84\xe7\xa8\x8b\xe5\xba\x8f"), QString(), SbieView__L("\xe7\xa8\x8b\xe5\xba\x8f\x20\x28\x2a\x2e\x65\x78\x65\x29\x3b\x3b\xe6\x89\x80\xe6\x9c\x89\xe6\x96\x87\xe4\xbb\xb6\x20\x28\x2a\x2e\x2a\x29"));
+	if (Source.isEmpty())
+		return;
+	Source = QDir::toNativeSeparators(Source);
+
+	QString Root = QDir::toNativeSeparators(pBox->GetFileRoot());
+	while (Root.endsWith("\\"))
+		Root.chop(1);
+	if (Root.isEmpty()) {
+		QMessageBox::critical(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe7\xa8\x8b\xe5\xba\x8f"), SbieView__L("\xe6\xb2\x99\xe7\x9b\x92\xe6\xb2\xa1\xe6\x9c\x89\xe6\x96\x87\xe4\xbb\xb6\xe6\xa0\xb9\xe7\x9b\xae\xe5\xbd\x95\xe3\x80\x82"));
+		return;
+	}
+
+	if (Source.compare(Root, Qt::CaseInsensitive) == 0 || Source.startsWith(Root + "\\", Qt::CaseInsensitive)) {
+		QMessageBox::warning(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe7\xa8\x8b\xe5\xba\x8f"), SbieView__L("\xe8\xbf\x99\xe4\xb8\xaa\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9\xe5\xb7\xb2\xe7\xbb\x8f\xe5\x9c\xa8\xe6\xb2\x99\xe7\x9b\x92\xe9\x87\x8c\xe4\xba\x86\xef\xbc\x9a\x0a\x25\x31").arg(Source));
+		return;
+	}
+	if (Source.length() < 4 || Source.at(1) != ':') {
+		QMessageBox::warning(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe7\xa8\x8b\xe5\xba\x8f"), SbieView__L("\xe5\x8f\xaa\xe8\x83\xbd\xe5\xaf\xbc\xe5\x85\xa5\xe6\x9c\xac\xe5\x9c\xb0\xe7\xa3\x81\xe7\x9b\x98\xe4\xb8\x8a\xe7\x9a\x84\xe7\xa8\x8b\xe5\xba\x8f\xe6\x96\x87\xe4\xbb\xb6\xef\xbc\x88\xe4\xbe\x8b\xe5\xa6\x82\x20\x44\x3a\x5c\x41\x70\x70\x73\x5c\x46\x6f\x6f\x5c\x66\x6f\x6f\x2e\x65\x78\x65\xef\xbc\x89\xe3\x80\x82"));
+		return;
+	}
+
+	QString Dir = QDir::toNativeSeparators(QFileInfo(Source).absolutePath());
+	while (Dir.endsWith("\\"))
+		Dir.chop(1);
+	const QString Drive = Dir.left(1).toUpper();
+	const QString Relative = Dir.mid(3);
+	const QString TargetDir = Root + "\\drive\\" + Drive + (Relative.isEmpty() ? QString() : "\\" + Relative);
+	const QString TargetFile = TargetDir + "\\" + QFileInfo(Source).fileName();
+
+	if (!QDir().mkpath(TargetDir)) {
+		QMessageBox::critical(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe7\xa8\x8b\xe5\xba\x8f"), SbieView__L("\xe5\xa4\x8d\xe5\x88\xb6\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x9a\x0a\x25\x31").arg(TargetDir));
+		return;
+	}
+	if (QFile::exists(TargetFile) && !QFile::remove(TargetFile)) {
+		QMessageBox::critical(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe7\xa8\x8b\xe5\xba\x8f"), SbieView__L("\xe5\xa4\x8d\xe5\x88\xb6\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x9a\x0a\x25\x31").arg(TargetFile));
+		return;
+	}
+	if (!QFile::copy(Source, TargetFile)) {
+		QMessageBox::critical(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe7\xa8\x8b\xe5\xba\x8f"), SbieView__L("\xe5\xa4\x8d\xe5\x88\xb6\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x9a\x0a\x25\x31").arg(Source));
+		return;
+	}
+
+	const QString MenuName = QFileInfo(Source).completeBaseName();
+	const QString Command = pBox->MakeBoxCommand(Source);
+	pBox->AppendText("RunCommand", MenuName + "|" + Command);
+
+	QMessageBox::information(this, SbieView__L("\xe5\xaf\xbc\xe5\x85\xa5\xe7\xa8\x8b\xe5\xba\x8f"), SbieView__L("\xe5\xb7\xb2\xe5\xaf\xbc\xe5\x85\xa5\x20\x31\x20\xe4\xb8\xaa\xe6\x96\x87\xe4\xbb\xb6\xe5\x88\xb0\xe6\xb2\x99\xe7\x9b\x92\xe3\x80\x82\x0a\x0a\xe8\xbf\x90\xe8\xa1\x8c\xe8\x8f\x9c\xe5\x8d\x95\xe9\xa1\xb9\xef\xbc\x9a\x25\x31\x0a\xe5\x91\xbd\xe4\xbb\xa4\xef\xbc\x9a\x25\x32\x0a\x0a\xe5\xa6\x82\xe6\x9e\x9c\xe8\xbf\x99\xe4\xb8\xaa\xe7\xa8\x8b\xe5\xba\x8f\xe8\xbf\x98\xe9\x9c\x80\xe8\xa6\x81\xe5\x90\x8c\xe7\x9b\xae\xe5\xbd\x95\xe7\x9a\x84\x20\x44\x4c\x4c\x20\xe6\x88\x96\xe6\x95\xb0\xe6\x8d\xae\xe6\x96\x87\xe4\xbb\xb6\xef\xbc\x8c\xe8\xaf\xb7\xe6\x94\xb9\xe7\x94\xa8\xe3\x80\x8c\xe5\xaf\xbc\xe5\x85\xa5\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9\xe3\x80\x8d\xe3\x80\x82").arg(MenuName).arg(Command));
 }
 
 void CSbieView::OnSandBoxAction()
@@ -2150,6 +2212,10 @@ void CSbieView::OnSandBoxAction(QAction* Action, const QList<CSandBoxPtr>& SandB
 
 		foreach(const CSandBoxPtr& pBox, SandBoxes)
 			Results.append(pBox->TerminateAll());
+	}
+	else if (Action == m_pMenuImportFolder || Action == m_pImportFolder)
+	{
+		ImportFolder(SandBoxes.first());
 	}
 	else if (Action == m_pMenuImportProgram || Action == m_pImportProgram)
 	{

@@ -58,15 +58,22 @@ RunCommand=显示名称|"D:\Green\Foo\foo.exe"
 RunCommand=绿色工具\Foo|"D:\Green\Foo\foo.exe"
 ```
 
-### 1.3 把绿色程序导入箱内（`sbie-box import`）
+### 1.3 把绿色程序导入箱内
 
-想让程序**只存在于箱内**、以后都从箱内那份运行，用一条命令：
+界面上有两个入口（右键沙盒 → **Box Content**，或主菜单 **Sandbox**）：
+
+- **导入文件夹…** —— 绿色程序是一整个目录（带 DLL、配置、子目录）时用这个：整个目录被拷进箱内，并自动挑出顶层唯一（或让你选一个）的 exe 挂到运行菜单。
+- **导入程序…** —— 绿色程序就是一个单独的 exe 时用这个：只拷这一个文件进去，并挂到运行菜单。若它其实还需要同目录的其它文件，请改用「导入文件夹」。
+
+两个入口的效果和下面这条命令一致（命令行版整目录导入）：
 
 ```powershell
 sbie-box import AppCompartmentBox "D:\Green\Foo"
 ```
 
 （`sbie-box.exe` 装在 `C:\Program Files\Sandboxie-Plus\Tools\`；没装的话用分发包里的 `bin\sbie-box.exe`。）
+
+也可以完全用界面完成：**右键沙盒 → Box Content（箱内容） → Import Program...**（主菜单 **Sandbox → Import Program** 同一个功能）。选一个文件夹，它就拷贝进箱并在运行菜单里加好入口，路径含空格也没问题。
 
 它做三件事：
 

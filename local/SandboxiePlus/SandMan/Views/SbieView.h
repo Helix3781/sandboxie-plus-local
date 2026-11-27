@@ -103,6 +103,7 @@ private slots:
 	void						OnMoveTo(QTreeWidgetItem* pItem);
 	void						OnGroupAction(QAction* pAction);
 	void						OnSandBoxAction();
+	void						ImportFolder(const CSandBoxPtr& Box);
 	void						ImportProgram(const CSandBoxPtr& Box);
 	void						OnSandBoxAction(QAction* pAction);
 	void						OnSandBoxAction(QAction* pAction, const QList<CSandBoxPtr>& SandBoxes);
@@ -180,6 +181,7 @@ private:
 
 	QAction*				m_pNewBox;
 	QAction*				m_pImportBox;
+	QAction*				m_pImportFolder;
 	QAction*				m_pImportProgram;
 	QAction*				m_pAddGroupe;
 	QAction*				m_pRenGroupe;
@@ -202,6 +204,7 @@ private:
 	QAction*				m_pMenuRunCmdAdmin;
 	QAction*				m_pMenuRunCmd32;
 	QAction*				m_pMenuMkLink;
+	QAction*				m_pMenuImportFolder;
 	QAction*				m_pMenuImportProgram;
 	QMenu*					m_pMenuPresets;
 	QActionGroup*			m_pMenuPresetsAdmin;
