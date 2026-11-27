@@ -28,3 +28,7 @@ target/
 *.snk
 dist/
 cert/
+
+# the Rust crate keeps its mains in src/bin - do not let Bin/ swallow it
+!sbie-box/src/bin/
+!sbie-box/src/bin/*.rs

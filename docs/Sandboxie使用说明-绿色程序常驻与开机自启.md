@@ -131,6 +131,34 @@ sbie-box import AppCompartmentBox "D:\Green\Foo" --exe Foo.exe --name "我的工
 沙盒没有「开机即启动」的状态。它是**有程序要进去跑的时候才被拉起来**。
 所以「开机自启」的本质是：**开机后有个东西去调 `Start.exe` 把程序和箱一起拉起来**。
 
+### 2.1.1 「执行自动运行项目」到底是什么（为什么点了像没反应）
+
+沙盒右键 → 运行 → **执行自动运行项目…**，它跑的不是 ini 里的 `AutoExec`，而是**箱内的 Windows 启动项**：
+
+- 注册表 `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run` 和 `RunOnce`（含 `Wow6432Node`）
+- 注册表 `HKCU\...\Run` 和 `RunOnce`
+- 开始菜单「启动」文件夹（`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`）
+
+也就是说：它等价于「在箱子里模拟一次登录，把登录时会自启的东西跑一遍」。
+
+**新建的沙盒这些位置全是空的**，所以点下去什么都不会发生 —— 这是正常现象，不是坏了。新版界面已经加了反馈：点之前会弹一个说明框，列出「箱内启动文件夹里找到几个条目」（空就明说「（空）」），并给三种做法，确认后才真正执行。
+
+命令行等价的三个命令：
+
+```bat
+:: 看这个箱里有没有可跑的自启项，有就跑一遍（没东西时会明确告诉你 nothingToRun）
+sbie-box autorun <箱名>
+
+:: 让这个箱在开机（Sandboxie 服务启动）时自动跑它的自启项
+sbie-box autostart <箱名> on
+sbie-box autostart <箱名> off
+sbie-box autostart <箱名>        :: 只查询
+
+:: MCP 里对应 sbie_autorun / sbie_autostart 两个工具
+```
+
+`sbie-box autostart on` 写的是 `[GlobalSettings] StartSystemBox`，由 Sandboxie 服务在开机时对每个列出的箱执行一次「自动运行项目」。注意它**只跑箱内已有的自启项**，箱里没有自启项时仍然是「什么都没发生」—— 要让某个程序真的起来，得先给它一个自启项（做法 A/B/C）。
+
 ### 2.2 做法 A（推荐）：启动文件夹快捷方式
 
 1. `Win + R` → 输入 `shell:startup` → 回车，打开当前用户的启动文件夹
@@ -147,7 +175,7 @@ sbie-box import AppCompartmentBox "D:\Green\Foo" --exe Foo.exe --name "我的工
 - `/box:箱名` 指定沙盒（箱名只允许字母数字下划线）
 - `/silent` 不弹 Sandboxie 的启动窗口
 - 如果程序本身要提权，加 `/elevate`
-- 只想「开机就把箱准备好、但不启动程序」，可以省略最后的程序路径 —— 这时靠下面的 `AutoExec` 来跑程序
+- **不能省略程序路径**：`Start.exe /box:X /silent` 不带程序会直接失败（退出码 1），本机实测过。想「只把箱准备好」请改用下面的触发器/`StartProgram`
 
 ### 2.3 做法 B：任务计划程序（能延迟、能开机而非登录）
 

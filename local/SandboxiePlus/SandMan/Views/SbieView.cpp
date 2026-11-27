@@ -210,7 +210,7 @@ void CSbieView::CreateMenu()
 		else
 			m_pMenuRunStart = NULL;
 		//m_pMenuRunTools->addSeparator();
-		m_pMenuAutoRun = m_pMenuRun->addAction(CSandMan::GetIcon("ReloadIni"), tr("Execute Autorun Entries"), this, SLOT(OnSandBoxAction()));
+		m_pMenuAutoRun = m_pMenuRun->addAction(CSandMan::GetIcon("ReloadIni"), SbieView__L("\xe6\x89\xa7\xe8\xa1\x8c\xe8\x87\xaa\xe5\x8a\xa8\xe8\xbf\x90\xe8\xa1\x8c\xe9\xa1\xb9\xe7\x9b\xae\xe2\x80\xa6"), this, SLOT(OnSandBoxAction()));
 		m_pMenuRunTools = m_pMenuRun->addMenu(CSandMan::GetIcon("Maintenance"), tr("Standard Applications"));
 			m_pMenuRunBrowser = m_pMenuRunTools->addAction(CSandMan::GetIcon("Internet"), tr("Default Web Browser"), this, SLOT(OnSandBoxAction()));
 			m_pMenuRunMailer = m_pMenuRunTools->addAction(CSandMan::GetIcon("Email"), tr("Default eMail Client"), this, SLOT(OnSandBoxAction()));
@@ -1518,6 +1518,74 @@ void CSbieView::RunCustomProgram(const CSandBoxPtr& Box)
 	theGUI->CheckResults(Results, this);
 }
 
+// ---------------------------------------------------------------- autorun --
+
+// Startup-folder entries that a box would see at logon (plain files, so we can
+// list them from the host side without parsing the box registry hive).
+static QStringList SbieView__CollectAutorunItems(const CSandBoxPtr& Box)
+{
+	QStringList Items;
+	QString Root = Box->GetFileRoot();
+	if (Root.isEmpty())
+		return Items;
+
+	QStringList Dirs;
+	Dirs << Root + "\\user\\current\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup";
+	Dirs << Root + "\\drive\\C\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup";
+
+	QDir Users(Root + "\\drive\\C\\Users");
+	foreach(const QString& User, Users.entryList(QDir::Dirs | QDir::NoDotAndDotDot))
+		Dirs << Root + "\\drive\\C\\Users\\" + User + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup";
+
+	foreach(const QString& DirPath, Dirs) {
+		QDir Dir(DirPath);
+		if (!Dir.exists())
+			continue;
+		foreach(const QFileInfo& Fi, Dir.entryInfoList(QDir::Files))
+			Items << Fi.fileName();
+	}
+	Items.removeDuplicates();
+	return Items;
+}
+
+// "Execute Autorun Entries" used to fire and forget; users could not tell whether
+// anything happened. Now we show what is about to run, and explain an empty result.
+void CSbieView::ExecuteAutorun(const CSandBoxPtr& Box)
+{
+	QString BoxName = Box->GetName();
+	QStringList Items = SbieView__CollectAutorunItems(Box);
+
+	QString Text = SbieView__L("\xe8\xbf\x99\xe4\xb8\xaa\xe5\x8a\x9f\xe8\x83\xbd\xe4\xbc\x9a\xe5\x9c\xa8\xe6\xb2\x99\xe7\x9b\x92\xe5\x86\x85\xe6\x89\xa7\xe8\xa1\x8c\xe4\xb8\x80\xe6\xac\xa1 Windows \xe7\x9a\x84\xe5\x90\xaf\xe5\x8a\xa8\xe9\xa1\xb9\xef\xbc\x9a\xe6\xb3\xa8\xe5\x86\x8c\xe8\xa1\xa8 Run / RunOnce\xef\xbc\x88HKLM + HKCU\xef\xbc\x8c\xe5\x90\xab Wow6432Node\xef\xbc\x89\xe5\x92\x8c\xe5\xbc\x80\xe5\xa7\x8b\xe8\x8f\x9c\xe5\x8d\x95\xe7\x9a\x84\xe3\x80\x8c\xe5\x90\xaf\xe5\x8a\xa8\xe3\x80\x8d\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9\xe3\x80\x82");
+	Text += "\n\n";
+	Text += SbieView__L("\xe6\xb2\x99\xe7\x9b\x92\xef\xbc\x9a") + BoxName;
+	Text += "\n";
+
+	if (Items.isEmpty()) {
+		Text += SbieView__L("\xe6\xb2\x99\xe7\x9b\x92\xe5\x86\x85\xe5\x90\xaf\xe5\x8a\xa8\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9\xef\xbc\x9a\xef\xbc\x88\xe7\xa9\xba\xef\xbc\x89");
+	} else {
+		Text += SbieView__L("\xe6\xb2\x99\xe7\x9b\x92\xe5\x86\x85\xe5\x90\xaf\xe5\x8a\xa8\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9\xef\xbc\x9a%1 \xe9\xa1\xb9").arg(Items.count());
+		int Shown = 0;
+		foreach(const QString& Item, Items) {
+			if (Shown++ >= 10) {
+				Text += "\n  ...";
+				break;
+			}
+			Text += "\n  - " + Item;
+		}
+	}
+
+	Text += "\n\n";
+	Text += SbieView__L("\xe5\xa6\x82\xe6\x9e\x9c\xe7\x82\xb9\xe4\xba\x86\xe6\xb2\xa1\xe6\x9c\x89\xe4\xbb\xbb\xe4\xbd\x95\xe7\xa8\x8b\xe5\xba\x8f\xe5\x87\xba\xe7\x8e\xb0\xef\xbc\x8c\xe8\xaf\xb4\xe6\x98\x8e\xe8\xbf\x99\xe4\xb8\xaa\xe6\xb2\x99\xe7\x9b\x92\xe9\x87\x8c\xe7\xa1\xae\xe5\xae\x9e\xe6\xb2\xa1\xe6\x9c\x89\xe5\x90\xaf\xe5\x8a\xa8\xe9\xa1\xb9\xe3\x80\x82\xe6\x83\xb3\xe8\xae\xa9\xe7\xa8\x8b\xe5\xba\x8f\xe8\x87\xaa\xe5\x8a\xa8\xe8\xb5\xb7\xe6\x9d\xa5\xef\xbc\x8c\xe5\x8f\xaf\xe4\xbb\xa5\xef\xbc\x9a\xe2\x91\xa0\xe6\x8a\x8a\xe5\xbf\xab\xe6\x8d\xb7\xe6\x96\xb9\xe5\xbc\x8f\xe6\x94\xbe\xe8\xbf\x9b\xe6\xb2\x99\xe7\x9b\x92\xe5\x86\x85\xe7\x9a\x84\xe3\x80\x8c\xe5\x90\xaf\xe5\x8a\xa8\xe3\x80\x8d\xe6\x96\x87\xe4\xbb\xb6\xe5\xa4\xb9\xef\xbc\x9b\xe2\x91\xa1\xe5\x9c\xa8\xe6\xb2\x99\xe7\x9b\x92\xe9\x80\x89\xe9\xa1\xb9\xe2\x86\x92\xe9\xab\x98\xe7\xba\xa7\xe2\x86\x92\xe8\xa7\xa6\xe5\x8f\x91\xe5\x99\xa8\xe9\x87\x8c\xe6\xb7\xbb\xe5\x8a\xa0 AutoExec\xef\xbc\x88\xe5\x88\x9d\xe5\xa7\x8b\xe5\x8c\x96\xe6\x97\xb6\xef\xbc\x89\xe6\x88\x96 StartProgram\xef\xbc\x88\xe6\xaf\x8f\xe6\xac\xa1\xe5\x90\xaf\xe5\x8a\xa8\xe6\xb2\x99\xe7\x9b\x92\xe6\x97\xb6\xef\xbc\x89\xef\xbc\x9b\xe2\x91\xa2\xe6\x83\xb3\xe8\xae\xa9\xe6\x95\xb4\xe4\xb8\xaa\xe6\xb2\x99\xe7\x9b\x92\xe9\x9a\x8f\xe7\xb3\xbb\xe7\xbb\x9f\xe5\xbc\x80\xe6\x9c\xba\xe8\x87\xaa\xe5\x8a\xa8\xef\xbc\x8c\xe7\x94\xa8 sbie-box autostart %1 on\xe3\x80\x82").arg(BoxName);
+
+	if (QMessageBox::question(this, SbieView__L("\xe6\x89\xa7\xe8\xa1\x8c\xe8\x87\xaa\xe5\x8a\xa8\xe8\xbf\x90\xe8\xa1\x8c\xe9\xa1\xb9\xe7\x9b\xae"), Text,
+							  QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes) != QMessageBox::Yes)
+		return;
+
+	QList<SB_STATUS> Results;
+	Results.append(theGUI->RunStart(BoxName, "auto_run"));
+	theGUI->CheckResults(Results, this);
+}
+
 void CSbieView::ImportFolder(const CSandBoxPtr& Box)
 {
 	CSandBoxPlus* pBox = Box.objectCast<CSandBoxPlus>().data();
@@ -1717,7 +1785,7 @@ void CSbieView::OnSandBoxAction(QAction* Action, const QList<CSandBoxPtr>& SandB
 	else if (Action == m_pMenuRunAppWiz)
 		Results.append(theGUI->RunStart(SandBoxes.first()->GetName(), "\"C:\\WINDOWS\\System32\\control.exe\" \"C:\\Windows\\System32\\appwiz.cpl\""));
 	else if (Action == m_pMenuAutoRun)
-		Results.append(theGUI->RunStart(SandBoxes.first()->GetName(), "auto_run"));
+		ExecuteAutorun(SandBoxes.first());
 	else if (Action == m_pMenuRunCmd)
 		Results.append(theGUI->RunStart(SandBoxes.first()->GetName(), "cmd.exe"));
 	else if (Action == m_pMenuRunCmdAdmin)

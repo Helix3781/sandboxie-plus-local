@@ -56,18 +56,19 @@ pub fn box_root(ini: &RawIni, box_name: &str) -> Result<PathBuf, String> {
     if ini.get(box_name, "FileRootPath").is_none() && !ini.sections().iter().any(|s| s.eq_ignore_ascii_case(box_name)) {
         return Err(format!("sandbox '{}' not found in {}", box_name, ini.path.display()));
     }
+    // 1) FileRootPath is the full box folder.
+    if let Some(p) = ini.get(box_name, "FileRootPath") {
+        return Ok(PathBuf::from(strip_nt_prefix(&expand_vars(&p, box_name))));
+    }
+    // 2) BoxRootFolder (box level, else GlobalSettings) is a PARENT folder; the driver
+    //    appends "\\Sandbox\\<BoxName>" to it (Box_InitPaths / Driver_Sandbox).
     let template = ini
-        .get(box_name, "FileRootPath")
+        .get(box_name, "BoxRootFolder")
         .or_else(|| ini.get("GlobalSettings", "BoxRootFolder"))
-        .ok_or_else(|| "neither FileRootPath nor GlobalSettings/BoxRootFolder is configured".to_string())?;
-    let expanded = strip_nt_prefix(&expand_vars(&template, box_name));
-    // BoxRootFolder is a parent folder, FileRootPath is the full box folder.
-    let root = if ini.get(box_name, "FileRootPath").is_some() {
-        PathBuf::from(expanded)
-    } else {
-        PathBuf::from(expanded).join(box_name)
-    };
-    Ok(root)
+        .ok_or_else(|| "neither FileRootPath nor BoxRootFolder is configured".to_string())?;
+    let base = strip_nt_prefix(&expand_vars(&template, box_name));
+    let base = base.trim_end_matches('\\').to_string();
+    Ok(PathBuf::from(base).join("Sandbox").join(box_name))
 }
 
 fn strip_nt_prefix(path: &str) -> String {

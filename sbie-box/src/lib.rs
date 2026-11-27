@@ -222,6 +222,9 @@ impl IniOp {
     pub fn append(key: &str, value: &str) -> IniOp {
         IniOp { op: "append", setting: key.to_string(), value: Some(value.to_string()) }
     }
+    pub fn remove(key: &str) -> IniOp {
+        IniOp { op: "remove", setting: key.to_string(), value: None }
+    }
     pub fn remove_section() -> IniOp {
         IniOp { op: "remove_section", setting: "*".to_string(), value: None }
     }
@@ -240,6 +243,7 @@ fn apply_ops(env: &mut Env, box_name: &str, ops: &[IniOp]) -> Result<(), String>
             match op.op {
                 "set" => env.ini.set(box_name, &op.setting, op.value.as_deref().unwrap_or("")),
                 "append" => env.ini.append(box_name, &op.setting, op.value.as_deref().unwrap_or("")),
+                "remove" => env.ini.remove_key(box_name, &op.setting),
                 "remove_section" => env.ini.remove_section(box_name),
                 other => return Err(format!("internal: unknown ini op '{}'", other)),
             }
@@ -251,6 +255,8 @@ fn apply_ops(env: &mut Env, box_name: &str, ops: &[IniOp]) -> Result<(), String>
         for op in ops {
             if op.op == "remove_section" {
                 sbie::ini_update(&env.sbie_ini_exe, "set", box_name, "*", None)?;
+            } else if op.op == "remove" {
+                sbie::ini_update(&env.sbie_ini_exe, "set", box_name, &op.setting, None)?;
             } else {
                 sbie::ini_update(&env.sbie_ini_exe, op.op, box_name, &op.setting, op.value.as_deref())?;
             }
@@ -258,6 +264,111 @@ fn apply_ops(env: &mut Env, box_name: &str, ops: &[IniOp]) -> Result<(), String>
         env.reload()?;
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------- autorun --
+
+/// Startup-folder files a box would see at logon (host-side listing, so no
+/// box-registry parsing is involved).
+pub fn startup_items(root: &std::path::Path) -> Vec<String> {
+    let mut dirs: Vec<std::path::PathBuf> = Vec::new();
+    dirs.push(root.join("user").join("current").join("AppData").join("Roaming")
+        .join("Microsoft").join("Windows").join("Start Menu").join("Programs").join("Startup"));
+    dirs.push(root.join("drive").join("C").join("ProgramData")
+        .join("Microsoft").join("Windows").join("Start Menu").join("Programs").join("Startup"));
+    if let Ok(users) = std::fs::read_dir(root.join("drive").join("C").join("Users")) {
+        for u in users.flatten() {
+            if u.path().is_dir() {
+                dirs.push(u.path().join("AppData").join("Roaming").join("Microsoft")
+                    .join("Windows").join("Start Menu").join("Programs").join("Startup"));
+            }
+        }
+    }
+    let mut items: Vec<String> = Vec::new();
+    for d in dirs {
+        if let Ok(entries) = std::fs::read_dir(&d) {
+            for e in entries.flatten() {
+                if e.path().is_file() {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    if !items.iter().any(|i| i.eq_ignore_ascii_case(&name)) {
+                        items.push(name);
+                    }
+                }
+            }
+        }
+    }
+    items.sort();
+    items
+}
+
+/// Run the box's Windows autorun entries once ("Execute Autorun Entries").
+pub fn autorun(env: &Env, box_name: &str) -> Result<Value, String> {
+    let root = env.require_box(box_name)?;
+    let items = startup_items(&root);
+    let out = sbie::autorun(&env.start_exe, box_name)?;
+    let ran = out.code == 0;
+    Ok(json!({
+        "box": box_name,
+        "executed": ran,
+        "nothingToRun": !ran && items.is_empty(),
+        "exitCode": out.code,
+        "startupFolderItems": items,
+        "scope": "registry Run/RunOnce (HKLM+HKCU, incl. Wow6432Node) + Start Menu Startup folders, seen from inside the box",
+        "note": if ran {
+            "Autorun entries were started inside the box. Look for their windows."
+        } else {
+            "Nothing to run: this box has no Windows autorun entries (no Run/RunOnce registry values and no Startup-folder shortcuts). This is why the SandMan menu item appears to do nothing. To make a program start automatically use a Startup-folder shortcut, an AutoExec/StartProgram trigger, or `sbie-box autostart <box> on`."
+        }
+    }))
+}
+
+fn autostart_list(env: &Env) -> Vec<String> {
+    env.ini
+        .entries("GlobalSettings")
+        .into_iter()
+        .filter(|(k, _)| k.eq_ignore_ascii_case("StartSystemBox"))
+        .map(|(_, v)| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .collect()
+}
+
+/// Query or set `[GlobalSettings] StartSystemBox` (auto-run this box's autorun
+/// entries at system boot, when the Sandboxie service starts).
+pub fn autostart(env: &mut Env, box_name: &str, enable: Option<bool>) -> Result<Value, String> {
+    env.require_box(box_name)?;
+    let list = autostart_list(env);
+    let was_on = list.iter().any(|v| v.eq_ignore_ascii_case(box_name));
+
+    if let Some(on) = enable {
+        if on && !was_on {
+            apply_ops(env, "GlobalSettings", &[IniOp::append("StartSystemBox", box_name)])?;
+        } else if !on && was_on {
+            let rest: Vec<String> = list
+                .iter()
+                .filter(|v| !v.eq_ignore_ascii_case(box_name))
+                .cloned()
+                .collect();
+            let mut ops: Vec<IniOp> = Vec::new();
+            if rest.is_empty() {
+                ops.push(IniOp::remove("StartSystemBox"));
+            } else {
+                ops.push(IniOp::set("StartSystemBox", &rest[0]));
+                for v in rest.iter().skip(1) {
+                    ops.push(IniOp::append("StartSystemBox", v));
+                }
+            }
+            apply_ops(env, "GlobalSettings", &ops)?;
+        }
+    }
+
+    let list = autostart_list(env);
+    Ok(json!({
+        "box": box_name,
+        "autostart": list.iter().any(|v| v.eq_ignore_ascii_case(box_name)),
+        "boxes": list,
+        "setting": "GlobalSettings/StartSystemBox",
+        "note": "StartSystemBox makes Sandboxie run the box's autorun entries at system boot (service start)."
+    }))
 }
 
 /// Driver rule (`Box_IsValidName`): 1..=37 characters from [0-9A-Za-z_].

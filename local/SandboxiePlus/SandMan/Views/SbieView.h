@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "../../MiscHelpers/Common/PanelView.h"
 #include "../../MiscHelpers/Common/TreeviewEx.h"
@@ -106,6 +106,7 @@ private slots:
 	void						ImportFolder(const CSandBoxPtr& Box);
 	void						ImportProgram(const CSandBoxPtr& Box);
 	void						RunCustomProgram(const CSandBoxPtr& Box);
+	void						ExecuteAutorun(const CSandBoxPtr& Box);
 	void						OnSandBoxAction(QAction* pAction);
 	void						OnSandBoxAction(QAction* pAction, const QList<CSandBoxPtr>& SandBoxes);
 	void						OnProcessAction();

@@ -71,6 +71,12 @@ pub fn terminate(start_exe: &Path, box_name: &str, wait_ms: u64) -> Result<(), S
 }
 
 /// Launch a program inside the sandbox.
+/// Ask Start.exe to run the box's Windows autorun entries once
+/// (`auto_run`: registry Run/RunOnce + Start Menu Startup folders, in-box view).
+pub fn autorun(start_exe: &Path, box_name: &str) -> Result<CmdOutput, String> {
+    run(start_exe, &[format!("/box:{}", box_name), "auto_run".to_string()])
+}
+
 pub fn run_in_box(start_exe: &Path, box_name: &str, program: &Path, args: &[String]) -> Result<CmdOutput, String> {
     let mut full = vec![format!("/box:{}", box_name), "/silent".to_string(), program.display().to_string()];
     full.extend(args.iter().cloned());

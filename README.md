@@ -57,8 +57,8 @@ git diff --no-index --stat upstream local
 
 纯本地，零网络依赖，只依赖 `serde`/`serde_json`。
 
-- `sbie-box.exe` —— 命令行：`list / status / snapshots / restore / take / snap-delete / boot / run / stop / create / delete / import`，所有命令输出 JSON。`import <box> <folder>` 把绿色程序整体搬进箱内并在运行菜单里加一条入口（路径含空格时自动改用 8.3 短名，因为 Sandboxie 的 `RunCommand` 不支持带引号的命令）。
-- `sbie-mcp.exe` —— MCP 服务端，stdio + 换行分隔 JSON-RPC 2.0（protocolVersion `2024-11-05`），12 个工具：`sbie_list_boxes`、`sbie_box_status`、`sbie_list_snapshots`、`sbie_restore_snapshot`、`sbie_take_snapshot`、`sbie_delete_snapshot`、`sbie_boot`、`sbie_run`、`sbie_terminate`、`sbie_create_box`、`sbie_delete_box`、`sbie_import_program`。
+- `sbie-box.exe` —— 命令行：`list / status / snapshots / restore / take / snap-delete / boot / run / stop / create / delete / import / autorun / autostart`，所有命令输出 JSON。`autorun <box>` 跑一次箱内 Windows 启动项（没有条目时返回 `nothingToRun: true`）；`autostart <box> [on|off]` 开关 `[GlobalSettings] StartSystemBox`（整箱随开机自启）。`import <box> <folder>` 把绿色程序整体搬进箱内并在运行菜单里加一条入口（路径含空格时自动改用 8.3 短名，因为 Sandboxie 的 `RunCommand` 不支持带引号的命令）。
+- `sbie-mcp.exe` —— MCP 服务端，stdio + 换行分隔 JSON-RPC 2.0（protocolVersion `2024-11-05`），14 个工具：`sbie_list_boxes`、`sbie_box_status`、`sbie_list_snapshots`、`sbie_restore_snapshot`、`sbie_take_snapshot`、`sbie_delete_snapshot`、`sbie_boot`、`sbie_run`、`sbie_terminate`、`sbie_create_box`、`sbie_delete_box`、`sbie_import_program`、`sbie_autorun`、`sbie_autostart`。
 
 要点：
 - 写 `C:\Windows\Sandboxie.ini` 一律**经 `SbieIni.exe`**（走 `SbieIniServer` 以 SYSTEM 身份落盘并自动 reload 驱动配置），普通权限直接写会被拒。
@@ -71,6 +71,17 @@ git diff --no-index --stat upstream local
 cd sbie-box
 cargo build --release
 ```
+
+## 界面里的三项本地增强
+
+| 位置 | 名称 | 行为 |
+|---|---|---|
+| 箱右键 → Box Content / 主菜单 Sandbox | **导入文件夹…** | 整个目录拷进箱内 `drive\<盘>\<原路径>`，顶层唯一 exe 自动挂进运行菜单，多个则让你选 |
+| 同上 | **导入程序…** | 单个 exe 拷进箱内并挂进运行菜单（绿色程序只有一个文件时用这个） |
+| 箱右键 → 运行 | **运行指定程序…** | 弹文件框直接挑 exe，默认从该箱 `drive` 开始并记住每箱上次目录 |
+| 箱右键 → 运行 | **执行自动运行项目…** | 跑箱内 Windows 启动项（注册表 Run/RunOnce + 启动文件夹）；执行前弹出说明框并列出条目，空箱会明示「（空）」 |
+
+前两项与「运行指定程序…」共用一条规则：**程序已在箱内 → 运行命令指向箱内副本；未导入 → 仍指向宿主路径**（`CSandBoxPlus::MakeBoxAwareCommand` / `GetBoxAwareFullCommand`）。
 
 ## 构建（Windows / MSVC）
 

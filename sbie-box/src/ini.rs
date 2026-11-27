@@ -135,6 +135,29 @@ impl RawIni {
         self.lines.push(format!("{}={}", key, value));
     }
 
+    /// Drop every line of `key` inside `section` (multi-value keys included).
+    pub fn remove_key(&mut self, section: &str, key: &str) {
+        let mut out: Vec<String> = Vec::with_capacity(self.lines.len());
+        let mut in_section = false;
+        for line in self.lines.iter() {
+            let t = line.trim();
+            if t.starts_with('[') && t.ends_with(']') {
+                in_section = t[1..t.len() - 1].eq_ignore_ascii_case(section);
+                out.push(line.clone());
+                continue;
+            }
+            if in_section {
+                if let Some((k, _)) = split_kv(line) {
+                    if k.eq_ignore_ascii_case(key) {
+                        continue;
+                    }
+                }
+            }
+            out.push(line.clone());
+        }
+        self.lines = out;
+    }
+
     pub fn remove_section(&mut self, section: &str) {
         if let Some((start, end)) = self.section_range(section) {
             let end = if end < self.lines.len() { end } else { self.lines.len() };
