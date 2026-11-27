@@ -1,0 +1,39 @@
+NOTICE
+======
+
+This repository contains a personal, unofficial patch set for Sandboxie-Plus v1.19.1.
+
+Upstream project:
+  Sandboxie-Plus
+  Copyright 2020 - 2026 David Xanatos (xanasoft.com)
+  https://github.com/sandboxie-plus/Sandboxie
+
+Licensing of the upstream code (see upstream/LICENSE.Plus and upstream/LICENSE.Classic):
+
+  * Sandboxie core (kernel driver, classic components) is distributed under
+    the GNU General Public License version 3 (GPL-3.0). See upstream/LICENSE.Classic.
+
+  * SandMan / the sandbox UI components are distributed under the Sandboxie-Plus
+    license (upstream/LICENSE.Plus), which permits modifying, compiling and
+    redistributing the source code, and requires that the copyright notice and
+    permission notice be included in all copies or substantial portions.
+    Public distribution of self-compiled binaries additionally requires that the
+    complete modified source be made publicly available, that the software name is
+    not changed, and that no authorship or copyright information displayed by the
+    software is removed.
+
+What this repository does:
+
+  * upstream/  - unmodified v1.19.1 source, kept as a diff baseline.
+  * local/     - the same source with the modifications described in README.md.
+
+  No compiled binaries, build outputs, code-signing certificates or private keys
+  are published here. The software name and all copyright/authorship notices are
+  left unchanged. This work is for private, non-commercial use only, with no
+  warranty of any kind.
+
+  The sbie-box/ Rust code is original work written for this patch set.
+
+The names "Sandboxie", "Sandboxie-Plus" and "SandMan" are used only to identify
+the upstream software being patched. This project is not affiliated with or
+endorsed by the upstream author.

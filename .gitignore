@@ -1,0 +1,30 @@
+# build outputs of the upstream project
+Bin/
+obj/
+objdrv/
+release/
+debug/
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.tlog
+*.idb
+Makefile
+Makefile.*
+.qmake.stash
+*.vcxproj.user
+.ui_*
+ui_*.h
+moc_*.cpp
+qrc_*.cpp
+
+# rust
+target/
+
+# prebuilt / signing material - never commit
+*.pfx
+*.snk
+dist/
+cert/
