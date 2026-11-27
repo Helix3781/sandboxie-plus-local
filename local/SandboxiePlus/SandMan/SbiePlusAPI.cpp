@@ -18,6 +18,8 @@ typedef long NTSTATUS;
 #include <QtConcurrent>
 #include <QUuid>
 #include <QRegularExpression>
+#include <QDir>
+#include <QFile>
 #include "Helpers/WinHelper.h"
 
 #include "..\..\Sandboxie\common\win32_ntddk.h"
@@ -1032,6 +1034,43 @@ QString CSandBoxPlus::MakeBoxCommand(const QString& FileName)
 	//		BoxFileName.prepend('\\');
 	//}
 	return BoxFileName.replace(m_FilePath, "%BoxRoot%", Qt::CaseInsensitive);
+}
+
+// Returns <box root>\drive\<L>\<relative host path> when that copy exists inside the box,
+// otherwise an empty string. Used to decide whether a program has been imported into the box.
+QString CSandBoxPlus::GetBoxedCopy(const QString& HostFile)
+{
+	QString Path = QDir::toNativeSeparators(HostFile);
+	if (Path.length() < 4 || Path.at(1) != ':')
+		return QString();
+	QString BoxFile = m_FilePath + "\\drive\\" + Path.left(1).toUpper() + "\\" + Path.mid(3);
+	if (QFile::exists(BoxFile))
+		return BoxFile;
+	return QString();
+}
+
+// Command for the Run menu: point at the in-box copy when the program has been imported,
+// otherwise keep the original host path (a program that is only pinned but not imported still works).
+QString CSandBoxPlus::MakeBoxAwareCommand(const QString& HostFile)
+{
+	QString BoxFile = GetBoxedCopy(HostFile);
+	return MakeBoxCommand(BoxFile.isEmpty() ? HostFile : BoxFile);
+}
+
+// Same decision for a complete command line (executable plus arguments), already expanded.
+QString CSandBoxPlus::GetBoxAwareFullCommand(const QString& Command)
+{
+	QString Full = GetFullCommand(Command);
+	QString Arguments;
+	QString File = GetCommandFile(Full, &Arguments);
+	Arguments = Arguments.trimmed();
+	QString BoxFile = GetBoxedCopy(File);
+	if (BoxFile.isEmpty())
+		return Full;
+	QString Cmd = "\"" + BoxFile + "\"";
+	if (!Arguments.isEmpty())
+		Cmd += " " + Arguments;
+	return Cmd;
 }
 
 QString CSandBoxPlus::GetCommandFile(const QString& Command, QString* Arguments)

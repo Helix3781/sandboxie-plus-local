@@ -144,6 +144,9 @@ public:
 	virtual void			SetSuspendRecovery(bool bSet = true) { m_SuspendRecovery = bSet; }
 
 	virtual QString			MakeBoxCommand(const QString& FileName);
+	virtual QString			GetBoxedCopy(const QString& HostFile);
+	virtual QString			MakeBoxAwareCommand(const QString& HostFile);
+	virtual QString			GetBoxAwareFullCommand(const QString& Command);
 	virtual QString			GetCommandFile(const QString& Command, QString* Arguments = NULL);
 	virtual QString			GetFullCommand(const QString& Command);
 
