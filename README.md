@@ -132,3 +132,11 @@ cargo build --release
 
 - [开发与构建经验总结](docs/开发与构建经验总结.md) —— 从零搭构建环境开始，一路到驱动/Qt 编译坑、授权门禁机理、两级自签 PKI 与安装、快照物化与 UI 崩溃修复、Rust CLI 的 ini 提权与 8.3 短名、本机 shell 的 8 个坑。**想自己复现编译的人先看这篇。**
 - [使用说明：绿色程序常驻与开机自启](docs/Sandboxie使用说明-绿色程序常驻与开机自启.md) —— 界面操作级说明：导入文件夹/导入程序、运行指定程序、强制目录、开机自启。
+
+## 编译产物
+
+本仓库不放二进制（只放源码）。可直接下载已编译好的整包：
+
+- [Release v1.19.1-local.1](https://github.com/Helix3781/sandboxie-plus-local/releases/tag/v1.19.1-local.1) —— `SandboxieLocal-1.19.1-win64.zip`（含 SandMan/驱动/证书/安装脚本/Rust CLI/文档），安装需管理员并重启电脑。
+
+> 该二进制是**个人自用的本地构建**，非官方发布；仅供本机验证，请勿分发。
