@@ -200,6 +200,7 @@ void CSbieView::CreateMenu()
 	connect(m_pMenuRun, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(OnMenuContextMenu(const QPoint&)));
 
 		m_pMenuRunAny = m_pMenuRun->addAction(CSandMan::GetIcon("Run"), tr("Run Program"), this, SLOT(OnSandBoxAction()));
+		m_pMenuRunCustom = m_pMenuRun->addAction(CSandMan::GetIcon("Run"), SbieView__L("\xe8\xbf\x90\xe8\xa1\x8c\xe6\x8c\x87\xe5\xae\x9a\xe7\xa8\x8b\xe5\xba\x8f\xe2\x80\xa6"), this, SLOT(OnSandBoxAction()));
 		m_pMenuRunMenu = m_pMenuRun->addAction(CSandMan::GetIcon("StartMenu"), tr("Run from Start Menu"), this, SLOT(OnSandBoxAction()));
 		if (theConf->GetBool("Options/ScanStartMenu", true)) {
 			m_pMenuRunStart = new QMenu();
@@ -377,6 +378,7 @@ void CSbieView::CreateOldMenu()
 		m_pMenuRunBrowser = m_pMenuRun->addAction(CSandMan::GetIcon("Internet"), tr("Run Web Browser"), this, SLOT(OnSandBoxAction()));
 		m_pMenuRunMailer = m_pMenuRun->addAction(CSandMan::GetIcon("Email"), tr("Run eMail Reader"), this, SLOT(OnSandBoxAction()));
 		m_pMenuRunAny = m_pMenuRun->addAction(CSandMan::GetIcon("Run"), tr("Run Any Program"), this, SLOT(OnSandBoxAction()));
+		m_pMenuRunCustom = m_pMenuRun->addAction(CSandMan::GetIcon("Run"), SbieView__L("\xe8\xbf\x90\xe8\xa1\x8c\xe6\x8c\x87\xe5\xae\x9a\xe7\xa8\x8b\xe5\xba\x8f\xe2\x80\xa6"), this, SLOT(OnSandBoxAction()));
 		m_pMenuRunMenu = m_pMenuRun->addAction(CSandMan::GetIcon("StartMenu"), tr("Run From Start Menu"), this, SLOT(OnSandBoxAction()));
 		if (theConf->GetBool("Options/ScanStartMenu", true)) {
 			m_pMenuRunStart = new QMenu();
@@ -447,6 +449,7 @@ void CSbieView::CreateOldMenu()
 	m_pMenuContent = NULL;
 	m_pMenuImportFolder = NULL;
 	m_pMenuImportProgram = NULL;
+	m_pMenuRunCustom = NULL;
 	m_pImportFolder = NULL;
 	m_pImportProgram = NULL;
 		m_pMenuRegEdit = NULL;
@@ -1485,6 +1488,36 @@ static bool SbieView__CopyFolder(const QString& Source, const QString& Target, i
 	return true;
 }
 
+// Pick any executable with a normal file dialog and run it inside this box.
+// The dialog remembers the last folder used per box, and starts at the box content
+// (drive folder) so a program that lives inside the sandbox is quick to reach.
+void CSbieView::RunCustomProgram(const CSandBoxPtr& Box)
+{
+	auto pBoxEx = Box.objectCast<CSandBoxPlus>();
+
+	QString Key = QString("Options/RunCustomDir/%1").arg(Box->GetName());
+	QString StartDir = theConf->GetString(Key);
+	QString Root = QDir::toNativeSeparators(pBoxEx ? pBoxEx->GetFileRoot() : QString());
+	while (Root.endsWith("\\"))
+		Root.chop(1);
+
+	if (StartDir.isEmpty() || !QDir(StartDir).exists()) {
+		QString DriveDir = Root + "\\drive";
+		StartDir = QDir(DriveDir).exists() ? DriveDir : Root;
+	}
+
+	QString Path = QFileDialog::getOpenFileName(this, SbieView__L("\xe9\x80\x89\xe6\x8b\xa9\xe8\xa6\x81\xe5\x9c\xa8\xe6\xb2\x99\xe7\xae\xb1\xe4\xb8\xad\xe8\xbf\x90\xe8\xa1\x8c\xe7\x9a\x84\xe7\xa8\x8b\xe5\xba\x8f"), StartDir, SbieView__L("\xe7\xa8\x8b\xe5\xba\x8f\x20\x28\x2a\x2e\x65\x78\x65\x29\x3b\x3b\xe6\x89\x80\xe6\x9c\x89\xe6\x96\x87\xe4\xbb\xb6\x20\x28\x2a\x2e\x2a\x29"));
+	if (Path.isEmpty())
+		return;
+	Path = QDir::toNativeSeparators(Path);
+	theConf->SetValue(Key, QFileInfo(Path).absolutePath());
+
+	QString Command = pBoxEx ? pBoxEx->MakeBoxAwareCommand(Path) : ("\"" + Path + "\"");
+	QList<SB_STATUS> Results;
+	Results.append(theGUI->RunStart(Box->GetName(), Command));
+	theGUI->CheckResults(Results, this);
+}
+
 void CSbieView::ImportFolder(const CSandBoxPtr& Box)
 {
 	CSandBoxPlus* pBox = Box.objectCast<CSandBoxPlus>().data();
@@ -1655,6 +1688,10 @@ void CSbieView::OnSandBoxAction(QAction* Action, const QList<CSandBoxPtr>& SandB
 			SandBoxes.first()->RunCommand(Command);*/
 
 		Results.append(theGUI->RunStart(SandBoxes.first()->GetName(), "run_dialog"));
+	}
+	else if (Action == m_pMenuRunCustom)
+	{
+		RunCustomProgram(SandBoxes.first());
 	}
 	else if (Action == m_pMenuRunBrowser)
 		Results.append(theGUI->RunStart(SandBoxes.first()->GetName(), "default_browser"));

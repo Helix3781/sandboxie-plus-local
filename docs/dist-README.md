@@ -12,6 +12,7 @@
 | 1 | MCP 及相关 AI 功能本地化、不联网 | MCP 走**命名管道**（`\Device\NamedPipe\SbieMcp*`），不含网络 socket；新增 Rust `sbie-mcp.exe`（纯 stdio，零网络依赖）。唯一的两个外链只是「手动打开浏览器提 issue」的文案，不影响运行。 |
 | 2 | 没有 CLI 就补 CLI | 新增 Rust `sbie-box.exe`：列箱/状态/快照增删与还原/boot/run/stop/建箱/删箱/导入绿色程序，输出 JSON。设置页的 AI 一栏会直接显示它的路径。 |
 | 8 | 内置「导入文件夹 / 导入程序」菜单 | 箱右键 → **Box Content**、或主菜单 **Sandbox**，两项：**导入文件夹…**（整个目录拷进箱内 `drive\<盘>\<原路径>`，自动挑顶层唯一 exe 或让你选一个挂进运行菜单）与 **导入程序…**（单个 exe 拷进箱内并挂进运行菜单）。路径含空格时用引号写入，不需要 8.3 短名。  启动时自动判断：若该程序已在箱内（`<箱根>\drive\<盘>\…` 存在），运行菜单指向**箱内副本**；否则仍指向宿主路径。 |
+| 9 | 运行菜单加「运行指定程序…」 | 箱右键 → **运行 / Run** 子菜单新增 **运行指定程序…**：弹出文件对话框直接挑 exe，默认从该箱的箱内 `<箱根>\drive` 开始，并记住每个沙盒上次选择的目录；选定后按「已导入→箱内副本，未导入→宿主路径」的规则在该箱中启动。免去在箱内文件树里逐层下钻。 |
 | 3 | 移除需要授权的付费功能 | 驱动 `verify.c` 在证书校验的收口处无条件置 `active=1, opt_sec/opt_enc/opt_net/opt_desk=1, type=eCertEternal`（所有功能位永久解锁）；`util.c` 的 `MyIsCallerSigned()` 直接放行（连 testsigning 都不再是前提）；删除首次启动向导里的「支持证书 / 免费评估证书」页。 |
 | 4 | 只保留「标准沙盒」+「应用程序沙盒（应用程序隔离）」 | `NewBoxWizard` 箱类型列表只剩两项：`Standard Sandbox`、`Application Compartment Box`（**不带数据保护的版本**，`eAppBox`）。 |
 | 5 | 这两种类型各建一个 | `StandardBox`（纯默认键）与 `AppCompartmentBox`（`NoSecurityIsolation=y` + `Template=RpcPortBindingsExt`，**不写** `UsePrivacyMode`）。 |

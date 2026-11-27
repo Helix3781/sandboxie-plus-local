@@ -105,6 +105,7 @@ private slots:
 	void						OnSandBoxAction();
 	void						ImportFolder(const CSandBoxPtr& Box);
 	void						ImportProgram(const CSandBoxPtr& Box);
+	void						RunCustomProgram(const CSandBoxPtr& Box);
 	void						OnSandBoxAction(QAction* pAction);
 	void						OnSandBoxAction(QAction* pAction, const QList<CSandBoxPtr>& SandBoxes);
 	void						OnProcessAction();
@@ -189,6 +190,7 @@ private:
 	QAction*				m_pStopAsync;
 	QMenu*					m_pMenuRun;
 	QAction*				m_pMenuRunAny;
+	QAction*				m_pMenuRunCustom;
 	QAction*				m_pMenuRunMenu;
 	QMenu*					m_pMenuRunStart;
 	QMap<QString, QMenu*>	m_MenuFolders;
