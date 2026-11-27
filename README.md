@@ -134,8 +134,8 @@ cargo build --release
 - `upstream/` 与 `local/` 保留全部原始版权声明。Sandboxie 内核与经典组件按 **GPL-3.0**（`LICENSE.Classic`）；
   SandMan / 沙箱 UI 部分适用 `LICENSE.Plus` 的自定义条款 —— 其中明确允许「修改、编译并以源码形式再分发」，
   公开再分发自编译二进制时则要求「全部修改后的源码公开、软件名称不得更改、不得移除作者与版权信息」。
-- 本仓库因此**只发布源码**、不改软件名称（二进制内仍为 `SandMan` / `SbieDrv`，窗口标题仍为 Sandboxie-Plus）、
-  不移除任何版权信息；本人不发布自编译二进制。
+- 本仓库因此**以源码为主体**、不改软件名称（二进制内仍为 `SandMan` / `SbieDrv`，窗口标题仍为 Sandboxie-Plus）、
+  不移除任何版权信息；Release 里挂的自编译二进制仅作本机验证与合规存档，与源码同一许可。
 - 私钥（`.pfx`）与签名材料**不入库**，由 `build-scripts/make_cert3.ps1` 在本机生成。
 - 仅个人非商业使用，无任何担保。
 
@@ -148,6 +148,7 @@ cargo build --release
 
 本仓库不放二进制（只放源码）。可直接下载已编译好的整包：
 
-- [Release v1.19.1-local.1](https://github.com/Helix3781/sandboxie-plus-local/releases/tag/v1.19.1-local.1) —— `SandboxieLocal-1.19.1-win64.zip`（含 SandMan/驱动/证书/安装脚本/Rust CLI/文档），安装需管理员并重启电脑。
+- [Release v1.19.1-local.2](https://github.com/Helix3781/sandboxie-plus-local/releases/tag/v1.19.1-local.2) —— `SandboxieLocal-1.19.1-win64.zip`（含 SandMan/驱动/证书/安装脚本/Rust CLI/文档），安装需管理员并重启电脑。
+- 更早版本：[v1.19.1-local.1](https://github.com/Helix3781/sandboxie-plus-local/releases/tag/v1.19.1-local.1)。
 
 > 该二进制是**个人自用的本地构建**，非官方发布；仅供本机验证，请勿分发。
