@@ -21,6 +21,7 @@
 upstream/          v1.19.1 官方原始源码，未作任何改动，仅作对照与 diff 基线
 local/             我们改造后的源码（= upstream + 下表 15 个文件的改动）
 sbie-box/          Rust 编写的本地 CLI + MCP 服务（新增，与 C++ 部分独立）
+docs/              中文使用说明（绿色程序导入箱内、开机自启等）
 build-scripts/     本次实际使用的构建/签名/打补丁脚本（不在官方构建体系内）
 ```
 
@@ -55,8 +56,8 @@ git diff --no-index --stat upstream local
 
 纯本地，零网络依赖，只依赖 `serde`/`serde_json`。
 
-- `sbie-box.exe` —— 命令行：`list / status / snapshots / restore / take / snap-delete / boot / run / stop / create / delete`，所有命令输出 JSON。
-- `sbie-mcp.exe` —— MCP 服务端，stdio + 换行分隔 JSON-RPC 2.0（protocolVersion `2024-11-05`），11 个工具：`sbie_list_boxes`、`sbie_box_status`、`sbie_list_snapshots`、`sbie_restore_snapshot`、`sbie_take_snapshot`、`sbie_delete_snapshot`、`sbie_boot`、`sbie_run`、`sbie_terminate`、`sbie_create_box`、`sbie_delete_box`。
+- `sbie-box.exe` —— 命令行：`list / status / snapshots / restore / take / snap-delete / boot / run / stop / create / delete / import`，所有命令输出 JSON。`import <box> <folder>` 把绿色程序整体搬进箱内并在运行菜单里加一条入口（路径含空格时自动改用 8.3 短名，因为 Sandboxie 的 `RunCommand` 不支持带引号的命令）。
+- `sbie-mcp.exe` —— MCP 服务端，stdio + 换行分隔 JSON-RPC 2.0（protocolVersion `2024-11-05`），12 个工具：`sbie_list_boxes`、`sbie_box_status`、`sbie_list_snapshots`、`sbie_restore_snapshot`、`sbie_take_snapshot`、`sbie_delete_snapshot`、`sbie_boot`、`sbie_run`、`sbie_terminate`、`sbie_create_box`、`sbie_delete_box`、`sbie_import_program`。
 
 要点：
 - 写 `C:\Windows\Sandboxie.ini` 一律**经 `SbieIni.exe`**（走 `SbieIniServer` 以 SYSTEM 身份落盘并自动 reload 驱动配置），普通权限直接写会被拒。

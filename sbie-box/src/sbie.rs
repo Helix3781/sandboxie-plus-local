@@ -124,3 +124,43 @@ pub fn ini_update(
     }
     Ok(())
 }
+
+/// 8.3 short path of an existing file, or `None` when the volume has no short
+/// names (or the query fails).
+///
+/// Needed because `SbieIni.exe` parses its own command line: it cannot carry a
+/// literal double quote into `Sandboxie.ini`, so a quoted `RunCommand` is not
+/// writable from here. A short path has no spaces, so it needs no quotes.
+pub fn short_path(path: &Path) -> Option<String> {
+    if !path.exists() {
+        return None;
+    }
+    let sysroot = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
+    let ps = PathBuf::from(format!(
+        "{}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        sysroot
+    ));
+    if !ps.is_file() {
+        return None;
+    }
+    let script = format!(
+        "(New-Object -ComObject Scripting.FileSystemObject).GetFile('{}').ShortPath",
+        path.display()
+    );
+    let out = run(
+        &ps,
+        &[
+            "-NoProfile".to_string(),
+            "-NonInteractive".to_string(),
+            "-Command".to_string(),
+            script,
+        ],
+    )
+    .ok()?;
+    let text = out.stdout.trim().to_string();
+    if text.is_empty() || text.contains(' ') || !text.contains('\\') {
+        None
+    } else {
+        Some(text)
+    }
+}

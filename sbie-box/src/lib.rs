@@ -372,3 +372,155 @@ pub fn delete_box(env: &mut Env, box_name: &str, purge: bool, wait_ms: u64) -> R
     }
     Ok(json!({"box": box_name, "deleted": true, "purged": purge}))
 }
+
+/// Copy a portable ("green") program folder into a box and register it in the
+/// box's Run Menu, so the program permanently lives inside the sandbox.
+///
+/// The copy lands at `<box root>\drive\<L>\<same path as on the host>`, because
+/// inside a box the host's `C:\` is redirected to `drive\C\`. Keeping the
+/// original absolute path means the program still finds its own DLLs and config,
+/// while every write it makes stays inside the box.
+pub fn import_program(
+    env: &mut Env,
+    box_name: &str,
+    source: &str,
+    exe: Option<&str>,
+    label: Option<&str>,
+    add_menu: bool,
+) -> Result<Value, String> {
+    use std::path::{Component, Path};
+
+    let root = env.require_box(box_name)?;
+    let src_raw = PathBuf::from(source);
+    let src = std::fs::canonicalize(&src_raw)
+        .map_err(|e| format!("cannot read source folder {}: {}", src_raw.display(), e))?;
+    if !src.is_dir() {
+        return Err(format!("source is not a folder: {}", src.display()));
+    }
+    if src.starts_with(&root) {
+        return Err(format!("{} is already inside the box root {}", src.display(), root.display()));
+    }
+
+    let mut comps = src.components();
+    let drive = match comps.next() {
+        Some(Component::Prefix(prefix)) => match prefix.kind() {
+            std::path::Prefix::Disk(letter) | std::path::Prefix::VerbatimDisk(letter) => {
+                Some((letter as char).to_ascii_uppercase())
+            }
+            _ => None,
+        },
+        _ => None,
+    };
+    let drive = drive.ok_or_else(|| {
+        format!("source must be on a drive letter (got {}); import works with C:, D:, ...", src.display())
+    })?;
+    let parts: Vec<String> = comps
+        .filter_map(|c| match c {
+            Component::Normal(s) => Some(s.to_string_lossy().to_string()),
+            _ => None,
+        })
+        .collect();
+    if parts.is_empty() {
+        return Err("refusing to import a whole drive root".to_string());
+    }
+
+    let mut target = root.join("drive").join(drive.to_string());
+    for part in &parts {
+        target = target.join(part);
+    }
+    let existed = target.exists();
+    std::fs::create_dir_all(&target).map_err(|e| format!("cannot create {}: {}", target.display(), e))?;
+    let files = snap::copy_tree(&src, &target).map_err(|e| format!("copy into {} failed: {}", target.display(), e))?;
+
+    // The path the program keeps inside the box: same drive letter, same folder.
+    let boxed = format!("{}:\\{}", drive, parts.join("\\"));
+
+    // Pick the executable: explicit --exe (relative to the folder), else a single
+    // .exe sitting directly in the folder, else nothing.
+    let exe_rel: Option<String> = match exe {
+        Some(rel) => Some(rel.trim_start_matches('\\').replace('/', "\\")),
+        None => {
+            let mut found: Vec<String> = Vec::new();
+            if let Ok(iter) = std::fs::read_dir(&src) {
+                for entry in iter.flatten() {
+                    let p = entry.path();
+                    if p.is_file() {
+                        if let Some(ext) = p.extension() {
+                            if ext.eq_ignore_ascii_case("exe") {
+                                found.push(entry.file_name().to_string_lossy().to_string());
+                            }
+                        }
+                    }
+                }
+            }
+            if found.len() == 1 {
+                Some(found.remove(0))
+            } else {
+                None
+            }
+        }
+    };
+
+    let mut boxed_exe: Option<String> = None;
+    let mut menu_note = String::from("Run Menu skipped (--no-menu)");
+    if let Some(rel) = &exe_rel {
+        let host_exe = src.join(rel);
+        if !host_exe.is_file() {
+            return Err(format!("executable not found in source folder: {}", rel));
+        }
+        let mut full = format!("{}\\{}", boxed, rel);
+        boxed_exe = Some(full.clone());
+        // SbieIni.exe parses its own command line and cannot carry a literal
+        // double quote into the ini, so a quoted command line is impossible from
+        // here. When the path contains a space, fall back to its 8.3 short name;
+        // if the volume has no short names, skip the entry instead of writing one
+        // that CreateProcess would misparse.
+        let mut can_menu = add_menu;
+        if add_menu && full.contains(' ') {
+            match sbie::short_path(&target.join(rel)) {
+                Some(short) => {
+                    let marker = format!("\\drive\\{}\\", drive);
+                    match short.to_lowercase().find(&marker.to_lowercase()) {
+                        Some(idx) => {
+                            full = format!("{}:\\{}", drive, &short[idx + marker.len()..]);
+                        }
+                        None => can_menu = false,
+                    }
+                }
+                None => can_menu = false,
+            }
+        }
+        if can_menu {
+            let name = match label {
+                Some(l) if !l.trim().is_empty() => l.trim().to_string(),
+                _ => Path::new(rel)
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_else(|| parts.last().cloned().unwrap_or_else(|| box_name.to_string())),
+            };
+            apply_ops(env, box_name, &[IniOp::append("RunCommand", &format!("{}|{}", name, full))])?;
+            boxed_exe = Some(full);
+            menu_note = format!("Run Menu: {}", name);
+        } else if add_menu {
+            menu_note = String::from(
+                "Run Menu skipped: path contains a space and this volume has no 8.3 short name; add the entry in SandMan (box options > General > Run Menu)",
+            );
+        }
+    } else if add_menu {
+        menu_note = String::from("Run Menu skipped: no single .exe found (pass --exe NAME.exe)");
+    }
+
+    let src_disp = src.display().to_string();
+    let src_disp = src_disp.strip_prefix("\\\\?\\").unwrap_or(&src_disp).to_string();
+
+    Ok(json!({
+        "box": box_name,
+        "source": src_disp,
+        "target": target.display().to_string(),
+        "files": files,
+        "overwritten": existed,
+        "exe": boxed_exe,
+        "run_menu": menu_note,
+        "note": "start it from inside the box; the host copy is untouched"
+    }))
+}
